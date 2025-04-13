@@ -20,19 +20,12 @@ const marks = [
 
 function App() {
   const [val, setVal] = useState<number>(MIN)
-  const [power, setPower] = useState(true)
   const handleChange = (_: Event | SyntheticEvent<Element, Event>, newValue: number) => {
     changeSetPoint(newValue);
     setVal(newValue);
   };
   const handlePower = () => {
-    if(power){
-      changeStatus("Off")
-    }else{
-      changeStatus("On")
-    }
-    
-    setPower(!power)
+    changeStatus()
   }
 
   return (
