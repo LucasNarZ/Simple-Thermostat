@@ -39,8 +39,6 @@
 #define MAX_TEMP 30.0
 #define MIN_TEMP 5.0
 
-#define AWS_IOT_PUBLISH_TOPIC   "esp32/pub"
-#define AWS_IOT_SUBSCRIBE_TOPIC "esp32/sub"
 WiFiClientSecure net = WiFiClientSecure();
 PubSubClient client(net);
 
@@ -51,8 +49,6 @@ void turnOff(void *pvParameters);
 void turnOn(void *pvParameters);
 void relay(void *pvParameters);
 void NTC(void *pvParameters);
-void sendEnvTemp(void *pvParameters);
-void receiveSetPoint(void *pvParameters);
 void mqttLoopTask(void *pvParameters);
 
 TaskHandle_t xDisplay;
@@ -62,23 +58,21 @@ TaskHandle_t xTurnOff;
 TaskHandle_t xTurnOn;
 TaskHandle_t xRelay;
 TaskHandle_t xNTC;
-TaskHandle_t xSendEnvTemp;
-TaskHandle_t xReceiveSetPoint;
 
 SemaphoreHandle_t xMessageMutex;
 SemaphoreHandle_t xSetPointMutex;
 
 TaskHandle_t xSetPointMutexOwner = NULL;
 
-uint8_t ledPins[9] = { LEDAPIN, LEDBPIN, LEDCPIN, LEDDPIN, LEDEPIN, LEDFPIN, LEDGPIN };
+uint8_t ledPins[9] = { LEDAPIN, LEDBPIN, LEDCPIN, LEDDPIN, LEDEPIN, LEDFPIN, LEDGPIN, LEDPPIN };
 uint8_t controls[4] = {CONTROL1PIN, CONTROL2PIN, CONTROL3PIN, CONTROL4PIN};
 float temp = 16.0;
-int intensity = 4095;
+unsigned int intensity = 4095;
 unsigned int tempoVolta = 0;
 unsigned int timerOff = 0;
 float envTemp = 20.0;
 bool isButtonActive = false;
-int scrollIndex = 0;
+unsigned int scrollIndex = 0;
 bool status = true;
 bool off = false;
 bool on = false;
@@ -170,10 +164,13 @@ void updateStatusDeviceShadow(char* buffer, size_t bufferSize, bool status){
   StaticJsonDocument<512> doc;
   JsonObject state = doc.createNestedObject("state");
   JsonObject reported = state.createNestedObject("reported");
+  JsonObject desired = state.createNestedObject("desired");
   if(status){
     reported["status"] = "On";
+    desired["status"] = "On";
   }else{
     reported["status"] = "Off";
+    desired["status"] = "Off";
   }
   
   serializeJson(doc, buffer, bufferSize);
@@ -321,6 +318,7 @@ void setup() {
   
   EEPROM.begin(EEPROM_SIZE);
   EEPROM.get(0, temp);
+
   connectToWifi();
   connectToAWS();
   client.subscribe("$aws/things/testEsp/shadow/update/delta");
@@ -354,29 +352,10 @@ void setup() {
   xTaskCreate(relay, "Relay", 2048, NULL, 1, &xRelay);
   xTaskCreate(NTC, "NTC", 2048, NULL, 1, &xNTC);
   xTaskCreate(mqttLoopTask, "MQTTLoop", 3072, NULL, 1, NULL);
-  xTaskCreate(sendEnvTemp, "sendEnvTemp", 2048, NULL, 1, &xSendEnvTemp);
-  xTaskCreate(receiveSetPoint, "receiveSetPoint", 2048, NULL, 1, &xReceiveSetPoint);
 }
 
 void loop() {}
 
-void sendEnvTemp(void *pvParameters){
-  while(1){
-    
-    // Serial.println("Enviando temperatura ambiente...");
-    // String payload = String(envTemp, 1); 
-
-    // client.publish("esp32/temperature", payload.c_str());
-
-    vTaskDelay(pdMS_TO_TICKS(3000));
-  }
-}
-
-void receiveSetPoint(void *pvParameters){
-  while(1){
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-}
 
 void display(void *pvParameters) {
   uint8_t localMessage[4];
